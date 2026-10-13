@@ -41,7 +41,7 @@ export function Modulo3Markup() {
 
       {/* Armadilhas */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <h4 className="font-semibold text-amber-800 mb-2">🪤 Armadilhas Argos Prime</h4>
+        <h4 className="font-semibold text-amber-800 mb-2">🪤 Armadilhas Argus Prime</h4>
         <ul className="space-y-2 text-sm text-amber-700">
           <li className="flex items-start gap-2">
             <Tooltip text="Se sua margem é 20% sobre R$100 de base líquida, ao mudar para uma base menor (ex: R$80), a margem em R$ cai de R$20 para R$16.">

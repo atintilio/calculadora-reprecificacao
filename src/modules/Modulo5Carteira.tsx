@@ -21,7 +21,7 @@ export function Modulo5Carteira() {
   return (
     <div className="space-y-6">
       <Disclaimer
-        text="A elasticidade de repasse varia por setor e região. Os percentuais são estimativas da Argos Prime baseadas em estudos setoriais."
+        text="A elasticidade de repasse varia por setor e região. Os percentuais são estimativas da Argus Prime baseadas em estudos setoriais."
         type="info"
       />
 
@@ -144,7 +144,7 @@ export function Modulo5Carteira() {
       </div>
 
       {/* Insight */}
-      <Card title="🧠 Insight Argos Prime">
+      <Card title="🧠 Insight Argus Prime">
         <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-4">
           <p className="text-sm text-gray-700">
             {analisePleno.aumentoSentido > 3 ? (

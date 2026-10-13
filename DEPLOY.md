@@ -10,7 +10,7 @@ git init
 git add .
 
 # 3. Primeiro commit
-git commit -m "feat: Calculadora de Reprecificação Argos Prime - Reforma Tributária"
+git commit -m "feat: Calculadora de Reprecificação Argus Prime - Reforma Tributária"
 
 # 4. Criar repo no GitHub (via gh CLI)
 gh repo create atintilio/calculadora-reprecificacao --public --source=. --push
@@ -18,12 +18,12 @@ gh repo create atintilio/calculadora-reprecificacao --public --source=. --push
 # OU manualmente:
 # - Criar repo em https://github.com/new
 # - Nome: calculadora-reprecificacao
-# - Organization: argos-prime
+# - Organization: argus-prime
 # - Public
 # - Depois rodar:
 
 git branch -M main
-git remote add origin git@github.com:argos-prime/calculadora-reprecificacao.git
+git remote add origin git@github.com:argus-prime/calculadora-reprecificacao.git
 git push -u origin main
 ```
 
@@ -34,7 +34,7 @@ git push -u origin main
 ```bash
 git init
 git add .
-git commit -m "feat: Calculadora de Reprecificação Argos Prime"
+git commit -m "feat: Calculadora de Reprecificação Argus Prime"
 git branch -M main
 git remote add origin <URL_DO_SEU_REPO>
 git push -u origin main
@@ -118,7 +118,7 @@ vercel
 
 # Seguir prompts:
 # - Set up and deploy? Y
-# - Which scope? argos-prime
+# - Which scope? argus-prime
 # - Link to existing project? N
 # - Project name? calculadora-reprecificacao
 # - Directory? ./

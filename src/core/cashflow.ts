@@ -1,6 +1,6 @@
 /**
  * MÓDULO 4: CAIXA — SPLIT PAYMENT
- * Argos Prime — Reforma Tributária
+ * Argus Prime — Reforma Tributária
  * 
  * Quantifica o float que desaparece com o split payment.
  */

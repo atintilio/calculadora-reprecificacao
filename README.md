@@ -1,4 +1,4 @@
-# 🏛️ Calculadora de Reprecificação — Argos Prime
+# 🏛️ Calculadora de Reprecificação — Argus Prime
 
 > **Ferramenta de simulação e ordem de grandeza** para a Reforma Tributária Brasileira (LC 214/2025).  
 > Integração planejada com a plataforma **Mila** via Tool Calling.
@@ -21,7 +21,7 @@
 
 ## 🎯 Visão Geral
 
-A **Calculadora de Reprecificação** é uma ferramenta da **Argos Prime** que permite a empresas simular o impacto da Reforma Tributária em:
+A **Calculadora de Reprecificação** é uma ferramenta da **Argus Prime** que permite a empresas simular o impacto da Reforma Tributária em:
 
 - **Margem de lucro** (Módulo 2)
 - **Precificação** (Módulo 3)
@@ -228,11 +228,11 @@ O motor de cálculo é uma biblioteca isolada (`src/core/`) preparada para ser c
 
 | Tool | Descrição | Input |
 |------|-----------|-------|
-| `argos_simulate_margin_impact` | Retorna perda de margem se preço congelado | `Parametros` |
-| `argos_calculate_required_price` | Retorna novo preço para manter margem | `target_margin, Parametros` |
-| `argos_convert_markup` | Converte preço antigo para novo | `cost, margin, credit_rate` |
-| `argos_analyze_cashflow_split` | Retorna custo anual do split payment | `Parametros` |
-| `argos_evaluate_portfolio_elasticity` | Retorna impacto real na carteira | `CarteiraMix, price_increase` |
+| `argus_simulate_margin_impact` | Retorna perda de margem se preço congelado | `Parametros` |
+| `argus_calculate_required_price` | Retorna novo preço para manter margem | `target_margin, Parametros` |
+| `argus_convert_markup` | Converte preço antigo para novo | `cost, margin, credit_rate` |
+| `argus_analyze_cashflow_split` | Retorna custo anual do split payment | `Parametros` |
+| `argus_evaluate_portfolio_elasticity` | Retorna impacto real na carteira | `CarteiraMix, price_increase` |
 
 ### Exemplo de Insight Conversacional
 
@@ -256,7 +256,7 @@ O motor de cálculo é uma biblioteca isolada (`src/core/`) preparada para ser c
 
 ### Regras de Marca
 
-- ✅ Toda referência usa APENAS a marca **Argos Prime**
+- ✅ Toda referência usa APENAS a marca **Argus Prime**
 - ❌ Zero menção a Contclaro, Contabilidade ou terceiros
 - ✅ Disclaimer legal em todas as telas de resultado
 
@@ -301,7 +301,7 @@ O bundle gerado em `dist/` é estático e pode ser servido por qualquer CDN ou h
 - [x] Motor de cálculo (4 módulos)
 - [x] UI reativa com Zustand
 - [x] Validação com Zod
-- [x] Design system Argos Prime
+- [x] Design system Argus Prime
 - [x] Disclaimers legais
 
 ### Fase 2 — Em Planejamento
@@ -326,9 +326,9 @@ O bundle gerado em `dist/` é estático e pode ser servido por qualquer CDN ou h
 
 ## 📄 Licença
 
-© 2025 **Argos Prime**. Todos os direitos reservados.
+© 2025 **Argus Prime**. Todos os direitos reservados.
 
 ---
 
-> *Documento gerado pela Argos Prime — Arquitetura de Software*  
+> *Documento gerado pela Argus Prime — Arquitetura de Software*  
 > *Versão: 1.0.0 | Última atualização: 2025*

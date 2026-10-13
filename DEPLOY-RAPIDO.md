@@ -6,7 +6,7 @@
 # Inicializar git e fazer primeiro commit
 git init
 git add .
-git commit -m "feat: Calculadora de Reprecificação Argos Prime - Reforma Tributária"
+git commit -m "feat: Calculadora de Reprecificação Argus Prime - Reforma Tributária"
 
 # Criar repo no GitHub e fazer push
 gh repo create atintilio/calculadora-reprecificacao --public --source=. --push
@@ -24,7 +24,7 @@ git init
 git add .
 
 # 3. Primeiro commit
-git commit -m "feat: Calculadora de Reprecificação Argos Prime"
+git commit -m "feat: Calculadora de Reprecificação Argus Prime"
 
 # 4. Renomear branch para main
 git branch -M main

@@ -1,6 +1,6 @@
 /**
  * MÓDULO 3: MARKUP — CONVERSOR DE FORMATO
- * Argos Prime — Reforma Tributária
+ * Argus Prime — Reforma Tributária
  * 
  * Converte o formato de precificação "por dentro" (atual)
  * para o formato "por fora" (novo sistema IBS/CBS).

@@ -1,5 +1,5 @@
 /**
- * MOTOR DE CÁLCULO FISCAL — ARGOS PRIME
+ * MOTOR DE CÁLCULO FISCAL — ARGUS PRIME
  * Funções puras para simulação da Reforma Tributária
  * 
  * AVISO: Ferramenta de simulação e ordem de grandeza.

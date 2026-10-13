@@ -38,7 +38,7 @@ function App() {
                 <span className="text-white font-bold text-sm">AP</span>
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Argos Prime</h1>
+                <h1 className="text-lg font-bold text-gray-900">Argus Prime</h1>
                 <p className="text-xs text-gray-500 -mt-0.5">Calculadora de Reprecificação</p>
               </div>
             </div>
@@ -101,13 +101,13 @@ function App() {
               <div className="w-6 h-6 bg-gradient-to-br from-indigo-600 to-purple-600 rounded flex items-center justify-center">
                 <span className="text-white font-bold text-xs">AP</span>
               </div>
-              <span className="text-sm font-medium text-gray-700">Argos Prime</span>
+              <span className="text-sm font-medium text-gray-700">Argus Prime</span>
             </div>
             <p className="text-xs text-gray-400 text-center">
               Ferramenta de simulação e ordem de grandeza. Não substitui consultoria fiscal especializada.
             </p>
             <p className="text-xs text-gray-400">
-              © {new Date().getFullYear()} Argos Prime. Todos os direitos reservados.
+              © {new Date().getFullYear()} Argus Prime. Todos os direitos reservados.
             </p>
           </div>
         </div>

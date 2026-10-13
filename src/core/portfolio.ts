@@ -1,6 +1,6 @@
 /**
  * MÓDULO 5: CARTEIRA — ELASTICIDADE E REPASSE
- * Argos Prime — Reforma Tributária
+ * Argus Prime — Reforma Tributária
  * 
  * Analisa o impacto real do aumento de preço considerando
  * a composição da carteira de clientes.

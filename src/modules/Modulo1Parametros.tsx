@@ -7,7 +7,7 @@ export function Modulo1Parametros() {
   return (
     <div className="space-y-6">
       <Disclaimer
-        text="A alíquota oficial da CBS depende de Resolução do Senado (Dez/2026) e cálculo do TCU (Out/2026). A opção/cancelamento do Simples vence antes da alíquota oficial existir. Esta é uma ferramenta de simulação e ordem de grandeza da Argos Prime."
+        text="A alíquota oficial da CBS depende de Resolução do Senado (Dez/2026) e cálculo do TCU (Out/2026). A opção/cancelamento do Simples vence antes da alíquota oficial existir. Esta é uma ferramenta de simulação e ordem de grandeza da Argus Prime."
         type="warning"
       />
 
