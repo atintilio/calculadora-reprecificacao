@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Argos Prime — Calculadora de Reprecificação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // ============================================
+        // MOTOR DE CÁLCULO
+        // ============================================
+        
+        function converterPorDentroParaFora(t) {
+            if (t >= 1) return Infinity;
+            return t / (1 - t);
+        }
+
+        function calcularAliquotaEfetiva(ivaDual, redutor) {
+            return ivaDual * (1 - parseInt(redutor) / 100);
+        }
+
+        function calcularTributosHoje(p) {
+            const issIcms = p.issIcms / 100;
+            const pisCofins = p.pisCofins / 100;
+            const comb = issIcms + pisCofins;
+            const porFora = converterPorDentroParaFora(comb);
+            const liq = p.faturamento / (1 + porFora);
+            return { porFora, tributo: liq * porFora, creditos: p.insumosComCredito * comb };
+        }
+
+        function calcularTributos2027(p) {
+            const issIcms = p.issIcms / 100;
+            const cbs = p.cbsEstimada / 100;
+            const issFora = converterPorDentroParaFora(issIcms);
+            const porFora = cbs + issFora;
+            const liq = p.faturamento / (1 + porFora);
+            return { porFora, tributo: liq * porFora, creditos: p.insumosComCredito * (cbs + issIcms) };
+        }
+
+        function calcularTributosPleno(p) {
+            const aliq = calcularAliquotaEfetiva(p.ivaDual, p.redutor) / 100;
+            const liq = p.faturamento / (1 + aliq);
+            return { porFora: aliq, tributo: liq * aliq, creditos: p.insumosComCredito * aliq };
+        }
+
+        function calcSobra(p, nota, trib) {
+            const liq = nota / (1 + trib.porFora);
+            const com = nota * (p.comissoesPercentual / 100);
+            return liq + trib.creditos - trib.tributo - p.folhaEncargos - p.insumosComCredito - p.insumosSemCredito - com;
+        }
+
+        function solver(p, sobraAlvo, trib) {
+            let lo = 0, hi = p.faturamento * 3;
+            for (let i = 0; i < 100; i++) {
+                const mid = (lo + hi) / 2;
+                const s = calcSobra(p, mid, trib);
+                if (Math.abs(s - sobraAlvo) < 0.01) return mid;
+                if (s < sobraAlvo) lo = mid; else hi = mid;
+            }
+            return (lo + hi) / 2;
+        }
+
+        function calcularReprecificacao(p) {
+            const tH = calcularTributosHoje(p);
+            const t27 = calcularTributos2027(p);
+            const tP = calcularTributosPleno(p);
+            
+            const hoje = { nota: p.faturamento, liq: p.faturamento / (1 + tH.porFora), trib: tH.tributo, cred: tH.creditos, sobra: calcSobra(p, p.faturamento, tH) };
+            const c27 = { nota: p.faturamento, liq: p.faturamento / (1 + t27.porFora), trib: t27.tributo, cred: t27.creditos, sobra: calcSobra(p, p.faturamento, t27) };
+            const cP = { nota: p.faturamento, liq: p.faturamento / (1 + tP.porFora), trib: tP.tributo, cred: tP.creditos, sobra: calcSobra(p, p.faturamento, tP) };
+            
+            const nova27 = solver(p, hoje.sobra, t27);
+            const novaP = solver(p, hoje.sobra, tP);
+            
+            return {
+                hoje, c27, cP,
+                perda27: c27.sobra - hoje.sobra,
+                perdaPleno: cP.sobra - hoje.sobra,
+                novaNota27, novaNotaPleno: novaP,
+                varNota27: ((nova27 - p.faturamento) / p.faturamento) * 100,
+                varNotaPleno: ((novaP - p.faturamento) / p.faturamento) * 100,
+                varLiq27: (((nova27 / (1 + t27.porFora)) - hoje.liq) / hoje.liq) * 100,
+                varLiqPleno: (((novaP / (1 + tP.porFora)) - hoje.liq) / hoje.liq) * 100,
+            };
+        }
+
+        function formatBRL(v) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+        }
+
+        function formatPct(v) { return v.toFixed(2) + '%'; }
+
+        // ============================================
+        // APP
+        // ============================================
+
+        const DEFAULTS = {
+            faturamento: 200000, folhaEncargos: 110000,
+            insumosComCredito: 30000, insumosSemCredito: 10000,
+            comissoesPercentual: 5, issIcms: 5, pisCofins: 3.65,
+            cbsEstimada: 9, ivaDual: 28, redutor: '30',
+            prazoMedioDias: 30, custoCapitalAnual: 13.65,
+        };
+
+        function App() {
+            const [tab, setTab] = useState(0);
+            const [p, setP] = useState(DEFAULTS);
+            const [cart, setCart] = useState({ pjReg: 40, pjSim: 20, pjRed: 10, b2c: 30 });
+
+            const upd = (k, v) => setP(prev => ({ ...prev, [k]: parseFloat(v) || 0 }));
+            const res = useMemo(() => calcularReprecificacao(p), [p]);
+
+            const tabs = ['⚙️ Parâmetros', '📊 Reprecificação', '🔄 Markup', '💰 Caixa', '👥 Carteira'];
+
+            return (
+                <div className="min-h-screen">
+                    {/* Header */}
+                    <header className="bg-white border-b shadow-sm sticky top-0 z-40">
+                        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 bg-gradient-to-br from-indigo-600 to-purple-600 rounded flex items-center justify-center">
+                                    <span className="text-white font-bold text-xs">AP</span>
+                                </div>
+                                <div>
+                                    <h1 className="text-sm font-bold">Argos Prime</h1>
+                                    <p className="text-xs text-gray-500 -mt-0.5">Reforma Tributária</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setP(DEFAULTS)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100">Resetar</button>
+                        </div>
+                    </header>
+
+                    {/* Tabs */}
+                    <nav className="bg-white border-b">
+                        <div className="max-w-6xl mx-auto px-4 flex overflow-x-auto scrollbar-hide">
+                            {tabs.map((t, i) => (
+                                <button key={i} onClick={() => setTab(i)}
+                                    className={`px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition ${tab === i ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+
+                    {/* Content */}
+                    <main className="max-w-6xl mx-auto px-4 py-6">
+                        {tab === 0 && <Modulo1 p={p} upd={upd} />}
+                        {tab === 1 && <Modulo2 res={res} />}
+                        {tab === 2 && <Modulo3 p={p} />}
+                        {tab === 3 && <Modulo4 p={p} />}
+                        {tab === 4 && <Modulo5 res={res} cart={cart} setCart={setCart} />}
+                    </main>
+
+                    <footer className="border-t bg-white mt-12 py-4 text-center text-xs text-gray-400">
+                        © {new Date().getFullYear()} Argos Prime — Ferramenta de simulação. Não substitui consultoria fiscal.
+                    </footer>
+                </div>
+            );
+        }
+
+        function Input({ label, val, onChange, suffix, prefix, tip }) {
+            return (
+                <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-700">{label} {tip && <span title={tip} className="cursor-help text-gray-400">ⓘ</span>}</label>
+                    <div className="relative">
+                        {prefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">{prefix}</span>}
+                        <input type="number" value={val} onChange={e => onChange(e.target.value)} step="0.01"
+                            className={`w-full border rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''}`} />
+                        {suffix && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">{suffix}</span>}
+                    </div>
+                </div>
+            );
+        }
+
+        function Card({ title, children }) {
+            return <div className="bg-white rounded-xl shadow-sm border p-5"><h3 className="font-semibold text-gray-800 mb-3">{title}</h3>{children}</div>;
+        }
+
+        function Disclaimer({ text }) {
+            return <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex gap-2"><span>⚠️</span><span>{text}</span></div>;
+        }
+
+        // ============================================
+        // MÓDULOS
+        // ============================================
+
+        function Modulo1({ p, upd }) {
+            return (
+                <div className="space-y-4">
+                    <Disclaimer text="A alíquota oficial da CBS depende de Resolução do Senado (Dez/2026). Ferramenta de simulação Argos Prime." />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card title="📊 Estrutura Mensal">
+                            <div className="space-y-3">
+                                <Input label="Faturamento" val={p.faturamento} onChange={v => upd('faturamento', v)} prefix="R$" />
+                                <Input label="Folha + Encargos" val={p.folhaEncargos} onChange={v => upd('folhaEncargos', v)} prefix="R$" />
+                                <Input label="Insumos c/ Crédito" val={p.insumosComCredito} onChange={v => upd('insumosComCredito', v)} prefix="R$" />
+                                <Input label="Insumos s/ Crédito" val={p.insumosSemCredito} onChange={v => upd('insumosSemCredito', v)} prefix="R$" />
+                                <Input label="Comissões" val={p.comissoesPercentual} onChange={v => upd('comissoesPercentual', v)} suffix="%" />
+                            </div>
+                        </Card>
+                        <Card title="🏛️ Tributos">
+                            <div className="space-y-3">
+                                <Input label="ISS / ICMS" val={p.issIcms} onChange={v => upd('issIcms', v)} suffix="%" />
+                                <Input label="PIS / Cofins" val={p.pisCofins} onChange={v => upd('pisCofins', v)} suffix="%" />
+                                <Input label="CBS (2027)" val={p.cbsEstimada} onChange={v => upd('cbsEstimada', v)} suffix="%" />
+                                <Input label="IVA Dual (2033)" val={p.ivaDual} onChange={v => upd('ivaDual', v)} suffix="%" />
+                                <div className="flex gap-2">
+                                    <label className="text-xs font-medium text-gray-700 w-full">Redutor</label>
+                                    <div className="flex gap-1 w-full">
+                                        {['0','30','60'].map(r => (
+                                            <button key={r} onClick={() => setP && upd('redutor', r)}
+                                                className={`flex-1 py-1 rounded text-xs font-medium ${p.redutor === r ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600'}`}>{r}%</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <Input label="Prazo Médio" val={p.prazoMedioDias} onChange={v => upd('prazoMedioDias', v)} suffix="dias" />
+                                <Input label="Custo Capital" val={p.custoCapitalAnual} onChange={v => upd('custoCapitalAnual', v)} suffix="% a.a." />
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        }
+
+        function Modulo2({ res }) {
+            return (
+                <div className="space-y-4">
+                    <Disclaimer text="Simulação de ordem de grandeza. Valores dependem da alíquota oficial da CBS." />
+                    <Card title="🔒 Preço Congelado — Perda de Margem">
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            <div className="bg-gray-50 rounded-lg p-3 text-center">
+                                <p className="text-xs text-gray-500">Hoje</p>
+                                <p className="text-lg font-bold">{formatBRL(res.hoje.sobra)}</p>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-3 text-center">
+                                <p className="text-xs text-amber-600">2027</p>
+                                <p className="text-lg font-bold text-amber-700">{formatBRL(res.c27.sobra)}</p>
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-3 text-center">
+                                <p className="text-xs text-red-600">Pleno</p>
+                                <p className="text-lg font-bold text-red-700">{formatBRL(res.cP.sobra)}</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+                                <p className="text-xs text-red-600">Perda 2027</p>
+                                <p className="text-xl font-bold text-red-700">{formatBRL(res.perda27)}</p>
+                            </div>
+                            <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+                                <p className="text-xs text-red-600">Perda Pleno</p>
+                                <p className="text-xl font-bold text-red-700">{formatBRL(res.perdaPleno)}</p>
+                            </div>
+                        </div>
+                    </Card>
+                    <Card title="📈 Novo Preço para Manter Margem">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
+                                <h4 className="font-semibold text-indigo-800 mb-2 text-sm">2027</h4>
+                                <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between"><span>Nova Nota:</span><span className="font-bold">{formatBRL(res.novaNota27)}</span></div>
+                                    <div className="flex justify-between"><span>Var. Nota:</span><span className="font-bold text-red-600">+{formatPct(res.varNota27)}</span></div>
+                                    <div className="flex justify-between"><span>Var. Líquido:</span><span className="font-bold text-red-600">+{formatPct(res.varLiq27)}</span></div>
+                                </div>
+                            </div>
+                            <div className="bg-purple-50 border border-purple-100 rounded-lg p-4">
+                                <h4 className="font-semibold text-purple-800 mb-2 text-sm">Regime Pleno</h4>
+                                <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between"><span>Nova Nota:</span><span className="font-bold">{formatBRL(res.novaNotaPleno)}</span></div>
+                                    <div className="flex justify-between"><span>Var. Nota:</span><span className="font-bold text-red-600">+{formatPct(res.varNotaPleno)}</span></div>
+                                    <div className="flex justify-between"><span>Var. Líquido:</span><span className="font-bold text-red-600">+{formatPct(res.varLiqPleno)}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        function Modulo3({ p }) {
+            const [custo, setCusto] = useState(1000);
+            const [margem, setMargem] = useState(20);
+            const aliqEfetiva = calcularAliquotaEfetiva(p.ivaDual, p.redutor);
+            const cred = custo * 0.6 * (aliqEfetiva / 100);
+            const custoLiq = custo - cred;
+            const fator = 1 - (1 + aliqEfetiva/100) * (p.comissoesPercentual/100) - margem/100;
+            const precoLiq = fator > 0 ? custoLiq / fator : 0;
+            const precoNota = precoLiq * (1 + aliqEfetiva/100);
+            const tribDentro = (p.issIcms + p.pisCofins) / 100;
+            const precoAntigo = tribDentro + p.comissoesPercentual/100 + margem/100 < 1 ? custo / (1 - tribDentro - p.comissoesPercentual/100 - margem/100) : 0;
+            const variacao = precoAntigo > 0 ? ((precoNota - precoAntigo) / precoAntigo) * 100 : 0;
+
+            return (
+                <div className="space-y-4">
+                    <Disclaimer text="Comissões incidem sobre o TOTAL da nota, não sobre o líquido." />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card title="🔧 Parâmetros">
+                            <div className="space-y-3">
+                                <Input label="Custo Bruto" val={custo} onChange={setCusto} prefix="R$" />
+                                <Input label="Margem Desejada" val={margem} onChange={setMargem} suffix="%" />
+                            </div>
+                        </Card>
+                        <Card title="📊 Resultado">
+                            <div className="space-y-2 text-sm">
+                                <div className="grid grid-cols-2 gap-2 mb-3">
+                                    <div className="bg-gray-50 rounded p-2 text-center"><p className="text-xs text-gray-500">Atual</p><p className="font-bold">{formatBRL(precoAntigo)}</p></div>
+                                    <div className="bg-indigo-50 rounded p-2 text-center"><p className="text-xs text-indigo-600">Novo</p><p className="font-bold text-indigo-700">{formatBRL(precoNota)}</p></div>
+                                </div>
+                                <div className={`text-center p-2 rounded ${variacao > 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                                    <p className="text-xs">Variação</p>
+                                    <p className={`text-xl font-bold ${variacao > 0 ? 'text-red-600' : 'text-green-600'}`}>{variacao > 0 ? '+' : ''}{formatPct(variacao)}</p>
+                                </div>
+                                <div className="border-t pt-2 space-y-1">
+                                    <div className="flex justify-between"><span>Crédito:</span><span className="text-green-600">{formatBRL(cred)}</span></div>
+                                    <div className="flex justify-between"><span>Custo Líq.:</span><span>{formatBRL(custoLiq)}</span></div>
+                                    <div className="flex justify-between font-bold"><span>Preço Nota:</span><span className="text-indigo-700">{formatBRL(precoNota)}</span></div>
+                                </div>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        }
+
+        function Modulo4({ p }) {
+            const issIcms = p.issIcms / 100;
+            const pisCofins = p.pisCofins / 100;
+            const comb = issIcms + pisCofins;
+            const porFora = converterPorDentroParaFora(comb);
+            const liq = p.faturamento / (1 + porFora);
+            const tribAtuais = liq * porFora;
+            const meses = p.prazoMedioDias / 30;
+            const float = tribAtuais * meses;
+            
+            const cbs = p.cbsEstimada / 100;
+            const debCBS = p.faturamento * cbs / (1 + cbs);
+            const credCBS = p.insumosComCredito * cbs;
+            const split = Math.max(0, debCBS - credCBS);
+            const capital = split * meses;
+            const custoAnual = capital * (p.custoCapitalAnual / 100);
+
+            return (
+                <div className="space-y-4">
+                    <Disclaimer text="Em 2027 o split payment é FACULTATIVO. Obrigatoriedade esperada para 2028+." />
+                    <Card title="💸 Impacto do Split Payment">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                            <div className="bg-green-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Float Atual</p><p className="text-lg font-bold text-green-700">{formatBRL(float)}</p></div>
+                            <div className="bg-red-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Split Retido</p><p className="text-lg font-bold text-red-700">{formatBRL(split)}</p></div>
+                            <div className="bg-amber-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Capital Recompor</p><p className="text-lg font-bold text-amber-700">{formatBRL(capital)}</p></div>
+                            <div className="bg-purple-50 rounded-lg p-3 text-center"><p className="text-xs text-gray-500">Custo Anual</p><p className="text-lg font-bold text-purple-700">{formatBRL(custoAnual)}</p></div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1">
+                            <p>• Hoje você segura <strong>{formatBRL(float)}</strong> por {p.prazoMedioDias} dias antes de recolher</p>
+                            <p>• Com split, o governo retém <strong>{formatBRL(split)}</strong> imediatamente</p>
+                            <p>• Capital de giro extra necessário: <strong>{formatBRL(capital)}</strong></p>
+                            <p>• Custo anual desse capital: <strong>{formatBRL(custoAnual)}</strong></p>
+                        </div>
+                    </Card>
+                </div>
+            );
+        }
+
+        function Modulo5({ res, cart, setCart }) {
+            const segs = [
+                { key: 'pjReg', nome: 'PJ Regular', absorve: 0 },
+                { key: 'pjSim', nome: 'PJ Simples', absorve: 70 },
+                { key: 'pjRed', nome: 'PJ Redutor', absorve: 50 },
+                { key: 'b2c', nome: 'B2C', absorve: 100 },
+            ];
+            const soma = Object.values(cart).reduce((a, b) => a + b, 0);
+            const norm = v => soma > 0 ? (v / soma) * 100 : 0;
+            
+            const sentido27 = segs.reduce((acc, s) => acc + (norm(cart[s.key]) / 100) * res.varNota27 * (s.absorve / 100), 0);
+            const sentidoPleno = segs.reduce((acc, s) => acc + (norm(cart[s.key]) / 100) * res.varNotaPleno * (s.absorve / 100), 0);
+
+            return (
+                <div className="space-y-4">
+                    <Card title="👥 Composição da Carteira">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {segs.map(s => (
+                                <Input key={s.key} label={s.nome} val={cart[s.key]} onChange={v => setCart(prev => ({ ...prev, [s.key]: parseFloat(v) || 0 }))} suffix="%" />
+                            ))}
+                        </div>
+                        {Math.abs(soma - 100) > 0.1 && <p className="text-xs text-amber-600 mt-2">⚠️ Soma: {soma.toFixed(1)}% (será normalizada)</p>}
+                    </Card>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card title="📅 2027">
+                            <div className="text-center bg-indigo-50 rounded-lg p-3 mb-3">
+                                <p className="text-xs text-indigo-600">Aumento Necessário</p>
+                                <p className="text-xl font-bold text-indigo-700">{formatPct(res.varNota27)}</p>
+                            </div>
+                            <div className="space-y-2">
+                                {segs.map(s => (
+                                    <div key={s.key} className="flex items-center gap-2 text-xs">
+                                        <span className="w-20 truncate">{s.nome}</span>
+                                        <div className="flex-1 bg-gray-100 rounded-full h-5 relative">
+                                            <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${norm(cart[s.key])}%` }} />
+                                            <span className="absolute inset-0 flex items-center justify-center font-medium">{norm(cart[s.key]).toFixed(0)}% → sente {formatPct(res.varNota27 * s.absorve / 100)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-3 text-center mt-3">
+                                <p className="text-xs text-red-600">Aumento Sentido</p>
+                                <p className="text-2xl font-bold text-red-700">{formatPct(sentido27)}</p>
+                            </div>
+                        </Card>
+                        <Card title="🔮 Regime Pleno">
+                            <div className="text-center bg-purple-50 rounded-lg p-3 mb-3">
+                                <p className="text-xs text-purple-600">Aumento Necessário</p>
+                                <p className="text-xl font-bold text-purple-700">{formatPct(res.varNotaPleno)}</p>
+                            </div>
+                            <div className="space-y-2">
+                                {segs.map(s => (
+                                    <div key={s.key} className="flex items-center gap-2 text-xs">
+                                        <span className="w-20 truncate">{s.nome}</span>
+                                        <div className="flex-1 bg-gray-100 rounded-full h-5 relative">
+                                            <div className="h-full bg-purple-400 rounded-full" style={{ width: `${norm(cart[s.key])}%` }} />
+                                            <span className="absolute inset-0 flex items-center justify-center font-medium">{norm(cart[s.key]).toFixed(0)}% → sente {formatPct(res.varNotaPleno * s.absorve / 100)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-3 text-center mt-3">
+                                <p className="text-xs text-red-600">Aumento Sentido</p>
+                                <p className="text-2xl font-bold text-red-700">{formatPct(sentidoPleno)}</p>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
